@@ -1,0 +1,73 @@
+-- server.lua
+local port = 1234
+local users = {}
+local tweets = {}
+
+-- Helper functions
+local function saveData()
+    local file = fs.open("data/users.txt", "w")
+    file.write(textutils.serialize(users))
+    file.close()
+
+    file = fs.open("data/tweets.txt", "w")
+    file.write(textutils.serialize(tweets))
+    file.close()
+end
+
+local function loadData()
+    if fs.exists("data/users.txt") then
+        local file = fs.open("data/users.txt", "r")
+        users = textutils.unserialize(file.readAll())
+        file.close()
+    end
+
+    if fs.exists("data/tweets.txt") then
+        local file = fs.open("data/tweets.txt", "r")
+        tweets = textutils.unserialize(file.readAll())
+        file.close()
+    end
+end
+
+local function handleRequest(data)
+    if data.type == "createUser" then
+        if not users[data.username] then
+            users[data.username] = {password = data.password, followers = 0, following = 0, bio = data.bio, profilePicture = data.profilePicture}
+            saveData()
+            return "User created: " .. data.username
+        else
+            return "User already exists."
+        end
+    elseif data.type == "login" then
+        if users[data.username] and users[data.username].password == data.password then
+            return "Login successful"
+        else
+            return "Invalid username or password"
+        end
+    elseif data.type == "updateProfile" then
+        if users[data.username] then
+            users[data.username].bio = data.bio
+            users[data.username].profilePicture = data.profilePicture
+            saveData()
+            return "Profile updated for " .. data.username
+        else
+            return "User not found."
+        end
+    elseif data.type == "showProfile" then
+        if users[data.username] then
+            return textutils.serialize(users[data.username])
+        else
+            return "User not found."
+        end
+    -- Other handlers remain the same
+    end
+end
+
+-- Main server loop
+loadData()
+rednet.open("back")
+while true do
+    local senderId, message = rednet.receive(port)
+    local request = textutils.unserialize(message)
+    local response = handleRequest(request)
+    rednet.send(senderId, response)
+end
