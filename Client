@@ -1,0 +1,70 @@
+-- client.lua
+local serverId = 1
+local port = 1234
+
+local function sendRequest(request)
+    rednet.open("back")
+    rednet.send(serverId, textutils.serialize(request), port)
+    local senderId, response = rednet.receive(port)
+    rednet.close()
+    return response
+end
+
+local function createUser()
+    print("Enter username:")
+    local username = read()
+    local request = {type = "createUser", username = username}
+    print(sendRequest(request))
+end
+
+local function tweet()
+    print("Enter username:")
+    local username = read()
+    print("Enter tweet:")
+    local message = read()
+    local request = {type = "tweet", username = username, message = message}
+    print(sendRequest(request))
+end
+
+local function showProfile()
+    print("Enter username:")
+    local username = read()
+    local request = {type = "showProfile", username = username}
+    print(sendRequest(request))
+end
+
+local function followUser()
+    print("Enter your username:")
+    local follower = read()
+    print("Enter the username of the person to follow:")
+    local followee = read()
+    local request = {type = "followUser", follower = follower, followee = followee}
+    print(sendRequest(request))
+end
+
+local function showMenu()
+    print("1. Create User")
+    print("2. Tweet")
+    print("3. View Profile")
+    print("4. Follow User")
+    print("5. Exit")
+end
+
+while true do
+    showMenu()
+    local choice = read()
+
+    if choice == "1" then
+        createUser()
+    elseif choice == "2" then
+        tweet()
+    elseif choice == "3" then
+        showProfile()
+    elseif choice == "4" then
+        followUser()
+    elseif choice == "5" then
+        break
+    else
+        print("Invalid choice.")
+    end
+end
