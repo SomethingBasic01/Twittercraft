@@ -1,0 +1,179 @@
+-- client.lua
+local serverId = 1
+local port = 1234
+local term = term
+
+local function sendRequest(request)
+    rednet.open("back")
+    rednet.send(serverId, textutils.serialize(request))
+    local senderId, response = rednet.receive(port)
+    rednet.close()
+    return response
+end
+
+local function drawBox(x, y, width, height, color)
+    term.setBackgroundColor(color)
+    for i = 0, height - 1 do
+        term.setCursorPos(x, y + i)
+        term.write(string.rep(" ", width))
+    end
+end
+
+local function drawButton(x, y, label)
+    term.setCursorPos(x, y)
+    term.setBackgroundColor(colors.gray)
+    term.setTextColor(colors.white)
+    term.write(label)
+    term.setBackgroundColor(colors.black)
+end
+
+local function inputBox(x, y, label)
+    term.setCursorPos(x, y)
+    term.setTextColor(colors.white)
+    term.write(label .. ": ")
+    term.setBackgroundColor(colors.lightGray)
+    local input = read()
+    term.setBackgroundColor(colors.black)
+    return input
+end
+
+local function createUser()
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    local username = inputBox(2, 2, "Username")
+    local password = inputBox(2, 4, "Password")
+    local bio = inputBox(2, 6, "Bio")
+    print("Choose profile picture option:")
+    print("1. Upload existing paint file")
+    print("2. Create new profile picture")
+    local choice = read()
+    local profilePicture
+
+    if choice == "1" then
+        profilePicture = inputBox(2, 8, "Enter path to paint file")
+    elseif choice == "2" then
+        shell.run("paint profilePicture.nfp")
+        profilePicture = "profilePicture.nfp"
+    end
+
+    local request = {type = "createUser", username = username, password = password, bio = bio, profilePicture = profilePicture}
+    print(sendRequest(request))
+end
+
+local function login()
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    local username = inputBox(2, 2, "Username")
+    local password = inputBox(2, 4, "Password")
+    local request = {type = "login", username = username, password = password}
+    local response = sendRequest(request)
+    if response == "Login successful" then
+        return true, username
+    else
+        print(response)
+        return false, nil
+    end
+end
+
+local function showProfile(username)
+    local request = {type = "showProfile", username = username}
+    local response = sendRequest(request)
+    local profile = textutils.unserialize(response)
+    if type(profile) == "table" then
+        print("Bio: " .. (profile.bio or ""))
+        print("Profile Picture:")
+        if fs.exists(profile.profilePicture) then
+            shell.run("paint", profile.profilePicture)
+        else
+            print("No profile picture found.")
+        end
+        print("Followers: " .. profile.followers)
+        print("Following: " .. profile.following)
+    else
+        print(response)
+    end
+end
+
+local function updateProfile(username)
+    print("Enter new bio:")
+    local bio = read()
+    print("Choose profile picture option:")
+    print("1. Upload existing paint file")
+    print("2. Create new profile picture")
+    local choice = read()
+    local profilePicture
+
+    if choice == "1" then
+        print("Enter path to paint file:")
+        profilePicture = read()
+    elseif choice == "2" then
+        shell.run("paint profilePicture.nfp")
+        profilePicture = "profilePicture.nfp"
+    end
+
+    local request = {type = "updateProfile", username = username, bio = bio, profilePicture = profilePicture}
+    print(sendRequest(request))
+end
+
+local function showMenu(username)
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    drawButton(2, 2, "1. Tweet")
+    drawButton(2, 4, "2. View Profile")
+    drawButton(2, 6, "3. Follow User")
+    drawButton(2, 8, "4. Unfollow User")
+    drawButton(2, 10, "5. View Tweets")
+    drawButton(2, 12, "6. Update Profile")
+    drawButton(2, 14, "7. Exit")
+end
+
+local function mainMenu(username)
+    while true do
+        showMenu(username)
+        local choice = read()
+
+        if choice == "1" then
+            tweet(username)
+        elseif choice == "2" then
+            showProfile(username)
+        elseif choice == "3" then
+            followUser(username)
+        elseif choice == "4" then
+            unfollowUser(username)
+        elseif choice == "5" then
+            viewTweets(username)
+        elseif choice == "6" then
+            updateProfile(username)
+        elseif choice == "7" then
+            break
+        else
+            print("Invalid choice.")
+        end
+    end
+end
+
+local function start()
+    while true do
+        term.clear()
+        drawBox(1, 1, 51, 19, colors.blue)
+        drawButton(2, 2, "1. Login")
+        drawButton(2, 4, "2. Create Account")
+        drawButton(2, 6, "3. Exit")
+        local choice = read()
+
+        if choice == "1" then
+            local success, username = login()
+            if success then
+                mainMenu(username)
+            end
+        elseif choice == "2" then
+            createUser()
+        elseif choice == "3" then
+            break
+        else
+            print("Invalid choice.")
+        end
+    end
+end
+
+start()
