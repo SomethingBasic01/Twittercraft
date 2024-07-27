@@ -1,0 +1,159 @@
+-- server.lua
+local port = 1234
+local users = {}
+
+local function loadUsers()
+    if fs.exists("users.txt") then
+        local file = fs.open("users.txt", "r")
+        users = textutils.unserialize(file.readAll())
+        file.close()
+        print("DEBUG: Users loaded - " .. textutils.serialize(users))
+    end
+end
+
+local function saveUsers()
+    local file = fs.open("users.txt", "w")
+    file.write(textutils.serialize(users))
+    file.close()
+    print("DEBUG: Users saved - " .. textutils.serialize(users))
+end
+
+local function createUser(request)
+    if users[request.username] then
+        print("DEBUG: Username already exists - " .. request.username)
+        return "Username already exists"
+    else
+        users[request.username] = {
+            password = request.password,
+            bio = request.bio,
+            profilePicture = request.profilePicture,
+            followers = 0,
+            following = 0,
+            tweets = {}
+        }
+        saveUsers()
+        print("DEBUG: User created - " .. request.username)
+        return "Profile created successfully"
+    end
+end
+
+local function login(request)
+    local user = users[request.username]
+    if user and user.password == request.password then
+        print("DEBUG: User logged in - " .. request.username)
+        return "Login successful"
+    else
+        print("DEBUG: Failed login attempt - " .. request.username)
+        return "Invalid username or password"
+    end
+end
+
+local function showProfile(request)
+    local user = users[request.username]
+    if user then
+        print("DEBUG: Showing profile - " .. request.username)
+        return textutils.serialize(user)
+    else
+        print("DEBUG: Profile not found - " .. request.username)
+        return "Profile not found"
+    end
+end
+
+local function updateProfile(request)
+    local user = users[request.username]
+    if user then
+        user.bio = request.bio
+        user.profilePicture = request.profilePicture
+        saveUsers()
+        print("DEBUG: Profile updated - " .. request.username)
+        return "Profile updated successfully"
+    else
+        return "Profile not found"
+    end
+end
+
+local function tweet(request)
+    local user = users[request.username]
+    if user then
+        table.insert(user.tweets, {time = os.date("%Y-%m-%d %H:%M:%S"), message = request.message})
+        saveUsers()
+        print("DEBUG: Tweet added - " .. request.username)
+        return "Tweet successful"
+    else
+        return "Profile not found"
+    end
+end
+
+local function followUser(request)
+    local user = users[request.follower]
+    local followee = users[request.followee]
+    if user and followee then
+        followee.followers = followee.followers + 1
+        user.following = user.following + 1
+        saveUsers()
+        print("DEBUG: " .. request.follower .. " followed " .. request.followee)
+        return "Follow successful"
+    else
+        return "Profile not found"
+    end
+end
+
+local function unfollowUser(request)
+    local user = users[request.follower]
+    local followee = users[request.followee]
+    if user and followee then
+        followee.followers = followee.followers - 1
+        user.following = user.following - 1
+        saveUsers()
+        print("DEBUG: " .. request.follower .. " unfollowed " .. request.followee)
+        return "Unfollow successful"
+    else
+        return "Profile not found"
+    end
+end
+
+local function viewTweets(request)
+    local user = users[request.username]
+    if user then
+        print("DEBUG: Viewing tweets - " .. request.username)
+        return textutils.serialize(user.tweets)
+    else
+        return "Profile not found"
+    end
+end
+
+rednet.open("back")
+print("Server started on port " .. port)
+loadUsers()
+
+while true do
+    local senderId, message = rednet.receive(port)
+    local request = textutils.unserialize(message)
+    local response = ""
+
+    print("DEBUG: Received request - " .. textutils.serialize(request))
+
+        if request.type == "clientStarted" then
+        print("DEBUG: Client started from ID " .. senderId)
+        response = "Client acknowledged"
+    elseif request.type == "createUser" then
+        response = createUser(request)
+    elseif request.type == "login" then
+        response = login(request)
+    elseif request.type == "showProfile" then
+        response = showProfile(request)
+    elseif request.type == "updateProfile" then
+        response = updateProfile(request)
+    elseif request.type == "tweet" then
+        response = tweet(request)
+    elseif request.type == "followUser" then
+        response = followUser(request)
+    elseif request.type == "unfollowUser" then
+        response = unfollowUser(request)
+    elseif request.type == "viewTweets" then
+        response = viewTweets(request)
+    end
+
+    rednet.send(senderId, response)
+    print("DEBUG: Sent response - " .. response)
+end
