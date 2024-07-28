@@ -1,0 +1,12 @@
+-- server.lua
+local port = 1234
+
+rednet.open("back")
+print("Server started on port " .. port)
+
+while true do
+    local senderId, message = rednet.receive(port)
+    print("Received message: " .. message)
+    local response = "Message received: " .. message
+    rednet.send(senderId, response)
+end
