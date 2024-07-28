@@ -1,0 +1,142 @@
+-- client.lua
+local serverId = 1
+local port = 1234
+
+-- Utility functions for UI
+local function drawBox(x, y, width, height, color)
+    term.setBackgroundColor(color)
+    for i = 0, height - 1 do
+        term.setCursorPos(x, y + i)
+        term.write(string.rep(" ", width))
+    end
+    term.setBackgroundColor(colors.black)
+end
+
+local function drawButton(x, y, width, label, buttonColor, textColor)
+    term.setCursorPos(x, y)
+    term.setBackgroundColor(buttonColor)
+    term.setTextColor(textColor)
+    term.write(string.rep(" ", width))
+    term.setCursorPos(x + math.floor((width - #label) / 2), y)
+    term.write(label)
+    term.setBackgroundColor(colors.black)
+end
+
+local function inputBox(x, y, width, label, password)
+    term.setCursorPos(x, y)
+    term.setTextColor(colors.white)
+    term.write(label .. ": ")
+    term.setBackgroundColor(colors.lightGray)
+    term.setTextColor(colors.black)
+    term.setCursorPos(x + #label + 2, y)
+    local input = read(password)
+    term.setBackgroundColor(colors.black)
+    return input
+end
+
+local function centerText(y, text)
+    local width, _ = term.getSize()
+    term.setCursorPos((width - #text) / 2, y)
+    term.write(text)
+end
+
+local function drawClickableText(x, y, text, textColor)
+    term.setCursorPos(x, y)
+    term.setTextColor(textColor)
+    term.write(text)
+    term.setTextColor(colors.white)
+end
+
+local function isClickWithin(x, y, width, height, clickX, clickY)
+    return clickX >= x and clickX <= x + width - 1 and clickY >= y and clickY <= y + height - 1
+end
+
+local function sendRequest(request)
+    rednet.open("back")
+    rednet.send(serverId, textutils.serialize(request))
+    local senderId, response = rednet.receive(port)
+    rednet.close()
+    return response
+end
+
+local function loginScreen()
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    centerText(4, "Login")
+
+    local width, height = term.getSize()
+    local usernameX, usernameY = (width - 20) / 2, height / 2 - 2
+    local passwordX, passwordY = (width - 20) / 2, height / 2
+    local loginX, loginY = (width - 10) / 2, height / 2 + 3
+    local backX, backY = (width - 20) / 2, height / 2 + 5
+
+    drawBox(1, 1, 51, 19, colors.blue)
+    centerText(4, "Login")
+
+    local username = inputBox(usernameX, usernameY, 20, "Username")
+    local password = inputBox(passwordX, passwordY, 20, "Password", "*")
+
+    drawButton(loginX, loginY, 10, "Login", colors.gray, colors.white)
+    drawClickableText(backX, backY, "Return to Menu", colors.yellow)
+
+    while true do
+        local event, button, x, y = os.pullEvent("mouse_click")
+        print("DEBUG: Mouse click event detected at (" .. x .. ", " .. y .. ")")
+        if event == "mouse_click" then
+            if isClickWithin(loginX, loginY, 10, 1, x, y) then
+                print("DEBUG: Login button clicked")
+                local request = {type = "login", username = username, password = password}
+                local response = sendRequest(request)
+                print("DEBUG: Sent login request - " .. textutils.serialize(request))
+                print("DEBUG: Received response - " .. response)
+                if response == "Login successful" then
+                    term.setCursorPos(loginX, loginY + 2)
+                    term.setTextColor(colors.green)
+                    term.write("Login successful")
+                    term.setTextColor(colors.white)
+                    sleep(2)
+                    return true, username
+                else
+                    term.setCursorPos(loginX, loginY + 2)
+                    term.setTextColor(colors.red)
+                    term.write("Invalid username or password")
+                    term.setTextColor(colors.white)
+                    sleep(2)
+                end
+            elseif isClickWithin(backX, backY, #("Return to Menu"), 1, x, y) then
+                print("DEBUG: Return to Menu clicked from LoginScreen")
+                return false, ""
+            end
+        end
+    end
+end
+
+local function start()
+    while true do
+        term.clear()
+        drawBox(1, 1, 51, 19, colors.blue)
+        drawButton(2, 2, 20, "Login", colors.gray, colors.white)
+        drawButton(2, 4, 20, "Create a new profile", colors.gray, colors.yellow)
+        drawButton(2, 6, 20, "Exit", colors.gray, colors.white)
+
+        local event, button, x, y = os.pullEvent("mouse_click")
+        print("DEBUG: Mouse click event detected at (" .. x .. ", " .. y .. ")")
+        if event == "mouse_click" then
+            if isClickWithin(2, 2, 20, 1, x, y) then
+                print("DEBUG: Login menu button clicked")
+                local success, username = loginScreen()
+                if success then
+                    print("DEBUG: Successfully logged in as " .. username)
+                end
+            elseif isClickWithin(2, 4, 20, 1, x, y) then
+                print("DEBUG: Create new profile button clicked")
+                -- Add call to createUser here if needed
+            elseif isClickWithin(2, 6, 20, 1, x, y) then
+                print("DEBUG: Exit button clicked")
+                break
+            end
+        end
+    end
+end
+
+start()
