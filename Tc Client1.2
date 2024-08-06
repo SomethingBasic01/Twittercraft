@@ -1,0 +1,284 @@
+local serverId = 1
+local port = 1234
+
+-- Utility functions for UI
+local function drawBox(x, y, width, height, color)
+    term.setBackgroundColor(color)
+    for i = 0, height - 1 do
+        term.setCursorPos(x, y + i)
+        term.write(string.rep(" ", width))
+    end
+    term.setBackgroundColor(colors.black)
+end
+
+local function drawButton(x, y, width, label, buttonColor, textColor)
+    term.setCursorPos(x, y)
+    term.setBackgroundColor(buttonColor)
+    term.setTextColor(textColor)
+    term.write(string.rep(" ", width))
+    term.setCursorPos(x + math.floor((width - #label) / 2), y)
+    term.write(label)
+    term.setBackgroundColor(colors.black)
+end
+
+local function inputBox(x, y, width, label, password)
+    term.setCursorPos(x, y)
+    term.setTextColor(colors.white)
+    term.write(label .. ": ")
+    term.setBackgroundColor(colors.lightGray)
+    term.setTextColor(colors.black)
+    term.setCursorPos(x + #label + 2, y)
+    local input = read(password)
+    term.setBackgroundColor(colors.black)
+    return input
+end
+
+local function centerText(y, text)
+    local width, _ = term.getSize()
+    term.setCursorPos((width - #text) / 2, y)
+    term.write(text)
+end
+
+local function drawClickableText(x, y, text, textColor)
+    term.setCursorPos(x, y)
+    term.setTextColor(textColor)
+    term.write(text)
+    term.setTextColor(colors.white)
+end
+
+local function isClickWithin(x, y, width, height, clickX, clickY)
+    return clickX >= x and clickX <= x + width - 1 and clickY >= y and clickY <= y + height - 1
+end
+
+local function sendRequest(request)
+    rednet.open("back")
+    rednet.send(serverId, textutils.serialize(request))
+    local senderId, response = rednet.receive(port)
+    rednet.close()
+    return response
+end
+
+local function createUser()
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    local width, height = term.getSize()
+    local username = ""
+    local password = ""
+    local bio = ""
+    local profilePicture = ""
+
+    while true do
+        term.clear()
+        drawBox(1, 1, 51, 19, colors.blue)
+        centerText(2, "Create a New Profile")
+
+        username = inputBox((width - 30) / 2, 4, 20, "Username")
+        password = inputBox((width - 30) / 2, 6, 20, "Password")
+        bio = inputBox((width - 30) / 2, 8, 20, "Bio")
+
+        centerText(10, "Choose profile picture option:")
+        drawButton((width - 30) / 2, 12, 30, "1. Upload existing paint file", colors.gray, colors.white)
+        drawButton((width - 30) / 2, 14, 30, "2. Create new profile picture", colors.gray, colors.white)
+        drawButton((width - 30) / 2, 16, 30, "3. Return to Menu", colors.gray, colors.yellow)
+
+        local event, button, x, y = os.pullEvent("mouse_click")
+        if isClickWithin((width - 30) / 2, 12, 30, 1, x, y) then
+            profilePicture = fileBrowser()
+            if profilePicture and profilePicture ~= "" and fs.exists(profilePicture) then
+                local request = {type = "createUser", username = username, password = password, bio = bio, profilePicture = profilePicture}
+                local response = sendRequest(request)
+                term.setCursorPos(1, 18)
+                term.setTextColor(colors.red)
+                print("DEBUG: Sent request - " .. textutils.serialize(request))
+                print("DEBUG: Received response - " .. response)
+                if response == "Profile created successfully" then
+                    term.setCursorPos((width - 30) / 2, 18)
+                    term.setTextColor(colors.green)
+                    term.write("Profile creation successful")
+                    term.setTextColor(colors.white)
+                    sleep(2)
+                    return
+                else
+                    term.setCursorPos((width - 30) / 2, 18)
+                    term.setTextColor(colors.red)
+                    term.write("Profile creation failed: " .. response)
+                    term.setTextColor(colors.white)
+                    sleep(2)
+                end
+            else
+                term.setCursorPos((width - 30) / 2, 18)
+                term.setTextColor(colors.red)
+                term.write("Invalid profile picture path")
+                term.setTextColor(colors.white)
+                sleep(2)
+            end
+        elseif isClickWithin((width - 30) / 2, 14, 30, 1, x, y) then
+            shell.run("paint profilePicture.nfp")
+            profilePicture = "profilePicture.nfp"
+            if profilePicture and profilePicture ~= "" and fs.exists(profilePicture) then
+                local request = {type = "createUser", username = username, password = password, bio = bio, profilePicture = profilePicture}
+                local response = sendRequest(request)
+                term.setCursorPos(1, 18)
+                term.setTextColor(colors.red)
+                print("DEBUG: Sent request - " .. textutils.serialize(request))
+                print("DEBUG: Received response - " .. response)
+                if response == "Profile created successfully" then
+                    term.setCursorPos((width - 30) / 2, 18)
+                    term.setTextColor(colors.green)
+                    term.write("Profile creation successful")
+                    term.setTextColor(colors.white)
+                    sleep(2)
+                    return
+                else
+                    term.setCursorPos((width - 30) / 2, 18)
+                    term.setTextColor(colors.red)
+                    term.write("Profile creation failed: " .. response)
+                    term.setTextColor(colors.white)
+                    sleep(2)
+                end
+            else
+                term.setCursorPos((width - 30) / 2, 18)
+                term.setTextColor(colors.red)
+                term.write("Invalid profile picture path")
+                term.setTextColor(colors.white)
+                sleep(2)
+            end
+        elseif isClickWithin((width - 30) / 2, 16, 30, 1, x, y) then
+            print("DEBUG: Return to Menu clicked from CreateUser")
+            return
+        end
+    end
+end
+
+local function loginScreen()
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    centerText(4, "Login")
+
+    local width, height = term.getSize()
+    local usernameX, usernameY = (width - 20) / 2, height / 2 - 2
+    local passwordX, passwordY = (width - 20) / 2, height / 2
+    local loginX, loginY = (width - 10) / 2, height / 2 + 3
+    local backX, backY = (width - 20) / 2, height / 2 + 5
+
+    local username = inputBox(usernameX, usernameY, 20, "Username")
+    local password = inputBox(passwordX, passwordY, 20, "Password", "*")
+
+    drawButton(loginX, loginY, 10, "Login", colors.gray, colors.white)
+    drawButton(backX, backY, 20, "Return to Menu", colors.yellow, colors.white)
+
+    print("DEBUG: Login button area: (" .. loginX .. ", " .. loginY .. ") to (" .. (loginX + 10 - 1) .. ", " .. (loginY + 1 - 1) .. ")")
+    print("DEBUG: Return to Menu button area: (" .. backX .. ", " .. backY .. ") to (" .. (backX + 20 - 1) .. ", " .. (backY + 1 - 1) .. ")")
+
+    while true do
+        local event, button, x, y = os.pullEvent("mouse_click")
+        print("DEBUG: Mouse click at (" .. x .. ", " .. y .. ")")
+        if isClickWithin(loginX, loginY, 10, 1, x, y) then
+            print("DEBUG: Login button clicked")
+            local request = {type = "login", username = username, password = password}
+            local response = sendRequest(request)
+            print("DEBUG: Sent login request - " .. textutils.serialize(request))
+            print("DEBUG: Received response - " .. response)
+      if response == "Login successful" then
+    term.setCursorPos(loginX, loginY + 2)
+    term.setTextColor(colors.green)
+    term.write("Login successful")
+    term.setTextColor(colors.white)
+    sleep(2)
+    return true, username
+else
+    term.setCursorPos(loginX, loginY + 2)
+    term.setTextColor(colors.red)
+    term.write("Invalid username or password")
+    term.setTextColor(colors.white)
+    sleep(2)
+end
+elseif isClickWithin(backX, backY, 20, 1, x, y) then
+    print("DEBUG: Return to Menu clicked")
+    return false, ""
+end
+end
+end
+
+local function viewTweets(username)
+    local request = {type = "viewTweets", username = username}
+    local response = sendRequest(request)
+    local tweets = textutils.unserialize(response)
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    if type(tweets) == "table" then
+        for i, tweet in ipairs(tweets) do
+            term.setCursorPos(2, 2 + (i - 1) * 2)
+            term.write(tweet.time .. " - " .. tweet.message)
+            if i == 9 then
+                term.setCursorPos(2, 2 + i * 2)
+                term.write("... and more")
+                break
+            end
+        end
+    else
+        term.setCursorPos(2, 2)
+        term.write("No tweets found.")
+    end
+    sleep(3)
+end
+
+local function showMenu(username)
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    drawButton(2, 2, 20, "1. Tweet", colors.gray, colors.white)
+    drawButton(2, 4, 20, "2. View Profile", colors.gray, colors.white)
+    drawButton(2, 6, 20, "3. Follow User", colors.gray, colors.white)
+    drawButton(2, 8, 20, "4. Unfollow User", colors.gray, colors.white)
+    drawButton(2, 10, 20, "5. View Tweets", colors.gray, colors.white)
+    drawButton(2, 12, 20, "6. Update Profile", colors.gray, colors.white)
+    drawButton(2, 14, 20, "7. Exit", colors.gray, colors.white)
+end
+
+local function mainMenu(username)
+    while true do
+        showMenu(username)
+        local event, button, x, y = os.pullEvent("mouse_click")
+        if isClickWithin(2, 2, 20, 1, x, y) then
+            tweet(username)
+        elseif isClickWithin(2, 4, 20, 1, x, y) then
+            showProfile(username)
+        elseif isClickWithin(2, 6, 20, 1, x, y) then
+            followUser(username)
+        elseif isClickWithin(2, 8, 20, 1, x, y) then
+            unfollowUser(username)
+        elseif isClickWithin(2, 10, 20, 1, x, y) then
+            viewTweets(username)
+        elseif isClickWithin(2, 12, 20, 1, x, y) then
+            updateProfile(username)
+        elseif isClickWithin(2, 14, 20, 1, x, y) then
+            break
+        else
+            term.setCursorPos(2, 18)
+            term.write("Invalid choice.")
+            sleep(1)
+        end
+    end
+end
+
+local function welcomeScreen()
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    centerText(4, "Welcome to the Twitter Client")
+    drawButton((term.getSize() / 2) - 7, 8, 15, "Login Screen", colors.gray, colors.white)
+    drawButton((term.getSize() / 2) - 7, 10, 15, "Create Profile", colors.gray, colors.white)
+    while true do
+        local event, button, x, y = os.pullEvent("mouse_click")
+        if isClickWithin((term.getSize() / 2) - 7, 8, 15, 1, x, y) then
+            local success, username = loginScreen()
+            if success then
+                mainMenu(username)
+            end
+        elseif isClickWithin((term.getSize() / 2) - 7, 10, 15, 1, x, y) then
+            createUser()
+        end
+    end
+end
+
+-- Start the program
+welcomeScreen()
