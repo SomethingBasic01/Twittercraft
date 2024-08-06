@@ -1,0 +1,77 @@
+-- Utility functions for UI
+local function drawBox(x, y, width, height, color)
+    term.setBackgroundColor(color)
+    for i = 0, height - 1 do
+        term.setCursorPos(x, y + i)
+        term.write(string.rep(" ", width))
+    end
+    term.setBackgroundColor(colors.black)
+end
+
+local function drawButton(x, y, width, label, buttonColor, textColor)
+    term.setCursorPos(x, y)
+    term.setBackgroundColor(buttonColor)
+    term.setTextColor(textColor)
+    term.write(string.rep(" ", width))
+    term.setCursorPos(x + math.floor((width - #label) / 2), y)
+    term.write(label)
+    term.setBackgroundColor(colors.black)
+end
+
+local function centerText(y, text)
+    local width, _ = term.getSize()
+    term.setCursorPos(math.floor((width - #text) / 2), y)
+    term.write(text)
+end
+
+local function isClickWithin(x, y, width, height, clickX, clickY)
+    return clickX >= x and clickX <= x + width - 1 and clickY >= y and clickY <= y + height - 1
+end
+
+local function loginScreen()
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    centerText(4, "Login")
+
+    local width, height = term.getSize()
+    local loginX, loginY = math.floor((width - 10) / 2), math.floor(height / 2) + 3
+    local backX, backY = math.floor((width - 20) / 2), math.floor(height / 2) + 5
+
+    drawButton(loginX, loginY, 10, "Login", colors.gray, colors.white)
+    drawButton(backX, backY, 20, "Return to Menu", colors.yellow, colors.white)
+
+    print("DEBUG: Login button area: (" .. loginX .. ", " .. loginY .. ") to (" .. (loginX + 10 - 1) .. ", " .. (loginY + 1 - 1) .. ")")
+    print("DEBUG: Return to Menu button area: (" .. backX .. ", " .. backY .. ") to (" .. (backX + 20 - 1) .. ", " .. (backY + 1 - 1) .. ")")
+
+    while true do
+        local event, button, x, y = os.pullEvent("mouse_click")
+        print("DEBUG: Mouse click at (" .. x .. ", " .. y .. ")")
+        if isClickWithin(loginX, loginY, 10, 1, x, y) then
+            print("DEBUG: Login button detected click within area")
+            print("DEBUG: Login button clicked")
+        else
+            print("DEBUG: Login button not detected click within area")
+        end
+        if isClickWithin(backX, backY, 20, 1, x, y) then
+            print("DEBUG: Return to Menu detected click within area")
+            print("DEBUG: Return to Menu clicked")
+        else
+            print("DEBUG: Return to Menu not detected click within area")
+        end
+    end
+end
+
+local function start()
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.blue)
+    drawButton(2, 2, 20, "Login Screen", colors.gray, colors.white)
+    
+    local event, button, x, y = os.pullEvent("mouse_click")
+    print("DEBUG: Mouse click at (" .. x .. ", " .. y .. ")")
+    if isClickWithin(2, 2, 20, 1, x, y) then
+        print("DEBUG: Login Screen button clicked")
+        loginScreen()
+    end
+end
+
+start()
