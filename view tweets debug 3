@@ -1,0 +1,99 @@
+local serverId = 1
+local port = 1234
+
+-- Utility functions for UI
+local function drawBox(x, y, width, height, color)
+    term.setBackgroundColor(color)
+    for i = 0, height - 1 do
+        term.setCursorPos(x, y + i)
+        term.write(string.rep(" ", width))
+    end
+    term.setBackgroundColor(colors.black)
+end
+
+local function drawButton(x, y, width, label, buttonColor, textColor)
+    term.setCursorPos(x, y)
+    term.setBackgroundColor(buttonColor)
+    term.setTextColor(textColor)
+    term.write(string.rep(" ", width))
+    term.setCursorPos(x + math.floor((width - #label) / 2), y)
+    term.write(label)
+    term.setBackgroundColor(colors.black)
+end
+
+local function sendRequest(request)
+    rednet.open("back")
+    rednet.send(serverId, textutils.serialize(request))
+    local senderId, response = rednet.receive(port)
+    rednet.close()
+    return response
+end
+
+local function viewTweets(username)
+    local request = {type = "viewTweets", username = username}
+    local response = sendRequest(request)
+    local tweets = textutils.unserialize(response)
+    
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.lightGray) -- Background for tweets
+    
+    if type(tweets) == "table" then
+        if #tweets == 0 then
+            term.setCursorPos(2, 2)
+            term.setTextColor(colors.white)
+            term.write("No tweets found.")
+        else
+            for i, tweet in ipairs(tweets) do
+                local y = 2 + (i - 1) * 6
+                
+                -- Draw tweet box
+                drawBox(2, y, 48, 5, colors.white)
+                term.setBackgroundColor(colors.white)
+                
+                -- Tweet message
+                term.setCursorPos(3, y + 1)
+                term.setTextColor(colors.black)
+                term.write(tweet.message)
+                
+                -- Tweet user
+                term.setCursorPos(3, y + 2)
+                term.setTextColor(colors.cyan)
+                term.write(tweet.user)
+                
+                -- Tweet time
+                term.setCursorPos(3, y + 3)
+                term.setTextColor(colors.gray)
+                term.write(tweet.time)
+            end
+        end
+    else
+        term.setCursorPos(2, 2)
+        term.setTextColor(colors.red)
+        term.write("Error retrieving tweets.")
+    end
+    
+    term.setTextColor(colors.white)
+    term.setBackgroundColor(colors.black)
+end
+
+-- Add some sample tweets
+local function loadSampleTweets()
+    local sampleTweets = {
+        {message = "Just setting up my new computer!", user = "Alice", time = "2024-08-06 22:16:23"},
+        {message = "Having a great day at the park!", user = "Bob", time = "2024-08-06 23:12:45"},
+        {message = "Coding in Lua is so much fun!", user = "Charlie", time = "2024-08-07 08:30:12"},
+        {message = "Learning new things every day.", user = "Dave", time = "2024-08-07 14:45:30"}
+    }
+    
+    for _, tweet in ipairs(sampleTweets) do
+        local request = {type = "tweet", username = tweet.user, message = tweet.message, time = tweet.time}
+        sendRequest(request)
+    end
+end
+
+-- Call this function once to add the sample tweets
+loadSampleTweets()
+
+-- Simulate a user viewing tweets
+local username = "Test" -- replace with the desired username
+viewTweets(username)
