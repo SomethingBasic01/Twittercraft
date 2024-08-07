@@ -1,0 +1,42 @@
+local function viewTweets(username)
+    local request = {type = "viewTweets", username = username}
+    local response = sendRequest(request)
+    local tweets = textutils.unserialize(response)
+
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.gray)
+
+    if type(tweets) == "table" then
+        if #tweets == 0 then
+            term.setCursorPos(2, 2)
+            term.write("No tweets found.")
+        else
+            local y = 2
+            for _, tweet in ipairs(tweets) do
+                term.setCursorPos(2, y)
+                term.setBackgroundColor(colors.white)
+                term.write(string.rep(" ", 48))
+                term.setCursorPos(2, y)
+                term.setTextColor(colors.black)
+                term.write(tweet.message)
+
+                term.setCursorPos(2, y + 1)
+                term.setTextColor(colors.blue)
+                term.write(tweet.user)
+
+                term.setCursorPos(2, y + 2)
+                term.setTextColor(colors.lightGray)
+                term.write(tweet.time)
+
+                y = y + 4
+                if y > 18 then
+                    break
+                end
+            end
+        end
+    else
+        term.setCursorPos(2, 2)
+        term.write("Error retrieving tweets.")
+    end
+    term.setBackgroundColor(colors.black)
+end
