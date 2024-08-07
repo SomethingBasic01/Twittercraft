@@ -1,0 +1,46 @@
+-- simplified_server.lua
+local port = 1234
+local users = {
+    Test = {
+        password = "Test",
+        tweets = {
+            {time = "2024-08-06 22:16:23", user = "Test", message = "This is a test"}
+        },
+        following = {}
+    }
+}
+
+local function viewTweets(request)
+    local user = users[request.username]
+    if user then
+        local allTweets = {}
+        for _, tweet in ipairs(user.tweets) do
+            table.insert(allTweets, tweet)
+        end
+        for followee, _ in pairs(user.following) do
+            if users[followee] then
+                for _, tweet in ipairs(users[followee].tweets) do
+                    table.insert(allTweets, tweet)
+                end
+            end
+        end
+        return textutils.serialize(allTweets)
+    else
+        return "Profile not found"
+    end
+end
+
+rednet.open("back")
+print("Server started on port " .. port)
+
+while true do
+    local senderId, message = rednet.receive(port)
+    local request = textutils.unserialize(message)
+    local response = ""
+
+    if request.type == "viewTweets" then
+        response = viewTweets(request)
+    end
+
+    rednet.send(senderId, response)
+end
