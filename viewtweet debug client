@@ -1,0 +1,44 @@
+-- simplified_client.lua
+local serverId = 1
+local port = 1234
+
+local function sendRequest(request)
+    rednet.open("back")
+    rednet.send(serverId, textutils.serialize(request))
+    local senderId, response = rednet.receive(port)
+    rednet.close()
+    return response
+end
+
+local function viewTweets(username)
+    local request = {type = "viewTweets", username = username}
+    local response = sendRequest(request)
+    local tweets = textutils.unserialize(response)
+    if type(tweets) == "table" then
+        term.clear()
+        if #tweets == 0 then
+            term.setCursorPos(2, 2)
+            term.write("No tweets found.")
+        else
+            for i, tweet in ipairs(tweets) do
+                term.setCursorPos(2, 2 + (i - 1) * 2)
+                if tweet.time and tweet.user and tweet.message then
+                    term.write(tweet.time .. " - " .. tweet.user .. ": " .. tweet.message)
+                else
+                    term.write("Invalid tweet data.")
+                end
+            end
+        end
+    else
+        term.clear()
+        term.setCursorPos(2, 2)
+        term.write("Error retrieving tweets.")
+    end
+end
+
+term.clear()
+term.setCursorPos(2, 2)
+term.write("Enter your username: ")
+local username = read()
+
+viewTweets(username)
