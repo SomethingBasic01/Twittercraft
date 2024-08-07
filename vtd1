@@ -1,0 +1,101 @@
+-- client.lua
+local serverId = 38
+local port = 1234
+
+-- Utility functions for UI
+local function drawBox(x, y, width, height, color)
+    term.setBackgroundColor(color)
+    for i = 0, height - 1 do
+        term.setCursorPos(x, y + i)
+        term.write(string.rep(" ", width))
+    end
+    term.setBackgroundColor(colors.black)
+end
+
+local function drawButton(x, y, width, label, buttonColor, textColor)
+    term.setCursorPos(x, y)
+    term.setBackgroundColor(buttonColor)
+    term.setTextColor(textColor)
+    term.write(string.rep(" ", width))
+    term.setCursorPos(x + math.floor((width - #label) / 2), y)
+    term.write(label)
+    term.setBackgroundColor(colors.black)
+end
+
+local function inputBox(x, y, width, label, password)
+    term.setCursorPos(x, y)
+    term.setTextColor(colors.white)
+    term.write(label .. ": ")
+    term.setBackgroundColor(colors.lightGray)
+    term.setTextColor(colors.black)
+    term.setCursorPos(x + #label + 2, y)
+    local input = read(password)
+    term.setBackgroundColor(colors.black)
+    return input
+end
+
+local function centerText(y, text)
+    local width, _ = term.getSize()
+    term.setCursorPos(math.floor((width - #text) / 2), y)
+    term.write(text)
+end
+
+local function isClickWithin(x, y, width, height, clickX, clickY)
+    return clickX >= x and clickX <= x + width - 1 and clickY >= y and clickY <= y + height - 1
+end
+
+local function sendRequest(request)
+    rednet.open("back")
+    rednet.send(serverId, textutils.serialize(request))
+    local senderId, response = rednet.receive(port)
+    rednet.close()
+    return response
+end
+
+local function viewTweets()
+    local tweets = {
+        {message = "This is a test tweet", user = "User1", time = "2024-08-06 22:16:23"},
+        {message = "Another tweet here", user = "User2", time = "2024-08-06 22:20:45"},
+        {message = "Third tweet example", user = "User3", time = "2024-08-06 22:25:01"}
+    }
+
+    term.clear()
+    drawBox(1, 1, 51, 19, colors.gray)
+
+    if type(tweets) == "table" then
+        if #tweets == 0 then
+            term.setCursorPos(2, 2)
+            term.write("No tweets found.")
+        else
+            local y = 2
+            for _, tweet in ipairs(tweets) do
+                term.setCursorPos(2, y)
+                term.setBackgroundColor(colors.white)
+                term.write(string.rep(" ", 48))
+                term.setCursorPos(2, y)
+                term.setTextColor(colors.black)
+                term.write(tweet.message)
+
+                term.setCursorPos(2, y + 1)
+                term.setTextColor(colors.blue)
+                term.write(tweet.user)
+
+                term.setCursorPos(2, y + 2)
+                term.setTextColor(colors.lightGray)
+                term.write(tweet.time)
+
+                y = y + 4
+                if y > 18 then
+                    break
+                end
+            end
+        end
+    else
+        term.setCursorPos(2, 2)
+        term.write("Error retrieving tweets.")
+    end
+    term.setBackgroundColor(colors.black)
+end
+
+-- Test the viewTweets function
+viewTweets()
